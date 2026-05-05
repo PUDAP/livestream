@@ -1,0 +1,19 @@
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx
+    ports:
+      - "8554:8554" # RTSP
+      - "1935:1935" # RTMP
+      - "8888:8888" # HLS
+      - "8889:8889" # WebRTC (HTTP/WHIP/WHEP)
+      - "8189:8189/udp" # WebRTC ICE/UDP
+      - "8189:8189/tcp" # WebRTC ICE/TCP
+    environment:
+      # Enable WebRTC
+      - MTX_WEBRTC=yes
+      - MTX_WEBRTCADDRESS=:8889
+      - MTX_WEBRTCLOCALUDPADDRESS=:8189
+      # Replace with your Server IP (Crucial for remote access)
+      - MTX_WEBRTCADDITIONALHOSTS=192.168.50.6
+    restart: unless-stopped

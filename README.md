@@ -4,12 +4,12 @@ sidebar_position: 6
 
 # Livestream
 
-Use this setup when a PUDA machine host has one or more USB cameras or webcams attached and you want live video available over RTSP, RTMP, HLS, or WebRTC.
+Use this setup when a PUDA machine host has one or more USB cameras, webcams, or IP cameras and you want live video available over RTSP, RTMP, HLS, or WebRTC.
 
 This guide assumes:
 
 - Docker Engine and Docker Compose are installed.
-- A camera or webcam is plugged into the host.
+- A USB camera, webcam, or IP camera is available to the host.
 - The host can be reached by operators, preferably over the same Tailscale network used for PUDA.
 
 ## Find camera devices
@@ -28,6 +28,12 @@ v4l2-ctl --list-devices
 
 Choose the device paths to expose, such as `/dev/video0` and `/dev/video2`.
 
+For IP cameras, find the camera stream URL from the camera admin UI or vendor docs. RTSP URLs usually look like:
+
+```text
+rtsp://user:pass@192.168.1.50:554/stream1
+```
+
 ## Set up the configuration files
 
 Navigate to the livestream directory:
@@ -45,12 +51,13 @@ Create `.env`:
 TAILSCALE_IP=100.64.0.10
 ```
 
-Create `streams.conf`. Each non-blank, non-comment line defines one stream: the device path on the host and the public stream name, separated by whitespace.
+Create `streams.conf`. Each non-blank, non-comment line defines one stream: the input and the public stream name, separated by whitespace. The input can be a local `/dev/video*` device or an IP camera URL.
 
 ```conf
-# device path    stream name
-/dev/video0      cam0
-/dev/video2      cam1
+# input                                      stream name
+/dev/video0                                 cam0
+/dev/video2                                 cam1
+rtsp://user:pass@192.168.1.50:554/stream1  ipcam0
 ```
 
 To add or remove a camera later, edit `streams.conf` and run:
@@ -68,21 +75,37 @@ set -eu
 CONFIG="${STREAMS_CONFIG:-/config/streams.conf}"
 count=0
 
-while read -r device name _rest || [ -n "$device" ]; do
-  case "$device" in
+while read -r input name _rest || [ -n "$input" ]; do
+  case "$input" in
     ''|\#*) continue ;;
   esac
 
   if [ -z "$name" ]; then
-    echo "Invalid line in $CONFIG (expected: DEVICE STREAM_NAME)" >&2
+    echo "Invalid line in $CONFIG (expected: INPUT STREAM_NAME)" >&2
     exit 1
   fi
 
-  echo "Starting stream $name from $device"
-  ffmpeg -loglevel error \
-    -f v4l2 -i "$device" \
-    -c:v libx264 -preset ultrafast -tune zerolatency \
-    -f flv "rtmp://mediamtx:1935/$name" &
+  echo "Starting stream $name from $input"
+  case "$input" in
+    /dev/video*)
+      ffmpeg -loglevel error \
+        -f v4l2 -i "$input" \
+        -c:v libx264 -preset ultrafast -tune zerolatency \
+        -f flv "rtmp://mediamtx:1935/$name" &
+      ;;
+    rtsp://*)
+      ffmpeg -loglevel error \
+        -rtsp_transport tcp -i "$input" \
+        -c:v copy \
+        -f flv "rtmp://mediamtx:1935/$name" &
+      ;;
+    *)
+      ffmpeg -loglevel error \
+        -i "$input" \
+        -c:v copy \
+        -f flv "rtmp://mediamtx:1935/$name" &
+      ;;
+  esac
   count=$((count + 1))
 done < "$CONFIG"
 
@@ -169,7 +192,7 @@ For each stream name in `streams.conf`, replace `STREAM_NAME` and `100.64.0.10` 
 | HLS | `http://100.64.0.10:8888/STREAM_NAME/` |
 | WebRTC | `http://100.64.0.10:8889/STREAM_NAME/` |
 
-With the example `streams.conf`, `cam0` and `cam1` are available at those URLs.
+With the example `streams.conf`, `cam0`, `cam1`, and `ipcam0` are available at those URLs.
 
 ## Verify with ffprobe
 

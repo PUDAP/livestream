@@ -6,11 +6,10 @@ services:
       - "8554:8554" # RTSP
       - "1935:1935" # RTMP
       - "8888:8888" # HLS
-      - "8889:8889" # WebRTC (HTTP/WHIP/WHEP)
+      - "8889:8889" # WebRTC HTTP/WHIP/WHEP
       - "8189:8189/udp" # WebRTC ICE/UDP
       - "8189:8189/tcp" # WebRTC ICE/TCP
     environment:
-      # Enable WebRTC
       - MTX_WEBRTC=yes
       - MTX_WEBRTCADDRESS=:8889
       - MTX_WEBRTCLOCALUDPADDRESS=:8189
@@ -22,18 +21,14 @@ services:
     container_name: ffmpeg
     depends_on:
       - mediamtx
-    devices:
-      - ${VIDEO_DEVICE_0}:${VIDEO_DEVICE_0}
-      - ${VIDEO_DEVICE_1}:${VIDEO_DEVICE_1}
+    device_cgroup_rules:
+      - "c 81:* rmw" # video4linux: allow any /dev/video* device
     group_add:
       - video
-    command: >
-      -loglevel error
-      -f v4l2 -i ${VIDEO_DEVICE_0}
-      -f v4l2 -i ${VIDEO_DEVICE_1}
-      -map 0:v -c:v libx264 -preset ultrafast -tune zerolatency -f flv rtmp://mediamtx:1935/cam0
-      -map 1:v -c:v libx264 -preset ultrafast -tune zerolatency -f flv rtmp://mediamtx:1935/cam1
-    # 2. Added Docker-side log rotation
+    volumes:
+      - ./streams.conf:/config/streams.conf:ro
+      - ./entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     logging:
       driver: "json-file"
       options:

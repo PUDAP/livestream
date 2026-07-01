@@ -9,11 +9,8 @@ services:
       - "8889:8889" # WebRTC HTTP/WHIP/WHEP
       - "8189:8189/udp" # WebRTC ICE/UDP
       - "8189:8189/tcp" # WebRTC ICE/TCP
-    environment:
-      - MTX_WEBRTC=yes
-      - MTX_WEBRTCADDRESS=:8889
-      - MTX_WEBRTCLOCALUDPADDRESS=:8189
-      - MTX_WEBRTCADDITIONALHOSTS=${HOST_ADDRESS}
+    env_file:
+      - .env
     restart: unless-stopped
 
   ffmpeg:

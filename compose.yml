@@ -21,10 +21,8 @@ services:
     container_name: ffmpeg
     depends_on:
       - mediamtx
-    device_cgroup_rules:
-      - "c 81:* rmw" # video4linux: allow any /dev/video* device
-    group_add:
-      - video
+    devices:
+      - /dev/video0:/dev/video0
     volumes:
       - ./streams.conf:/config/streams.conf:ro
       - ./entrypoint.sh:/entrypoint.sh:ro

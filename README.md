@@ -26,7 +26,7 @@ If the machine has `v4l-utils` installed, inspect the cameras:
 v4l2-ctl --list-devices
 ```
 
-Choose the device paths to expose, such as `/dev/video0` and `/dev/video2`.
+Choose the device paths to expose, such as `/dev/video0` and `/dev/video2`. Docker containers do not automatically see host video devices; each local camera used in `streams.conf` must also be exposed to the ffmpeg container with a matching `devices:` entry in `compose.yml`.
 
 For IP cameras, find the camera stream URL from the camera admin UI or vendor docs. RTSP URLs usually look like:
 
@@ -42,7 +42,7 @@ Navigate to the livestream directory:
 cd edge/livestream
 ```
 
-You will create three files: `.env` for the WebRTC host address, `streams.conf` to define your cameras, and `entrypoint.sh` to start them. `compose.yml` stays unchanged regardless of how many cameras you have.
+You will create three files: `.env` for the WebRTC host address, `streams.conf` to define your cameras, and `entrypoint.sh` to start them. For local USB cameras, update `compose.yml` so Docker passes the matching `/dev/video*` devices into the ffmpeg container.
 
 Create `.env`:
 
@@ -145,10 +145,8 @@ services:
     container_name: ffmpeg
     depends_on:
       - mediamtx
-    device_cgroup_rules:
-      - "c 81:* rmw" # video4linux: allow any /dev/video* device
-    group_add:
-      - video
+    devices:
+      - /dev/video0:/dev/video0
     volumes:
       - ./streams.conf:/config/streams.conf:ro
       - ./entrypoint.sh:/entrypoint.sh:ro
@@ -160,6 +158,8 @@ services:
         max-file: "3"
     restart: unless-stopped
 ```
+
+The `devices:` entry is what makes `/dev/video0` visible inside the ffmpeg container. Add one line for each local camera listed in `streams.conf`, for example `/dev/video2:/dev/video2`. IP camera URLs do not need a Docker device mapping.
 
 If a port is already in use on the host, change the left-hand side of the matching `ports` entry in `compose.yml`.
 

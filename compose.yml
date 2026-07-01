@@ -13,7 +13,7 @@ services:
       - MTX_WEBRTC=yes
       - MTX_WEBRTCADDRESS=:8889
       - MTX_WEBRTCLOCALUDPADDRESS=:8189
-      - MTX_WEBRTCADDITIONALHOSTS=${TAILSCALE_IP}
+      - MTX_WEBRTCADDITIONALHOSTS=${HOST_ADDRESS}
     restart: unless-stopped
 
   ffmpeg:

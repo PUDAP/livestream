@@ -25,7 +25,7 @@ while read -r input name _rest || [ -n "$input" ]; do
     rtsp://*)
       ffmpeg -loglevel error \
         -rtsp_transport tcp -i "$input" \
-        -c:v copy \
+        -map 0:v:0 -an -c:v copy \
         -f flv "rtmp://mediamtx:1935/$name" &
       ;;
     *)
